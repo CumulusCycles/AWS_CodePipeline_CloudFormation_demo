@@ -1,0 +1,6 @@
+[
+    {
+        "ParameterKey": "BucketName",
+        "ParameterValue": "cc-demo-app-code-pipeline-artifact-bucket"
+    }
+]

@@ -1,0 +1,89 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template to Create CodeDeploy App
+
+Parameters:
+  CodeDeployAppName:
+    Type: String
+    Description: Name of CodeDeploy App
+    Default: ""
+
+Resources:
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties: 
+      ApplicationName: !Ref CodeDeployAppName
+      ComputePlatform: Server
+
+  CodeDeployDevDeploymentGroup: 
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties: 
+      ApplicationName: !Ref CodeDeployApplication
+      Ec2TagFilters: 
+        - Type: "KEY_AND_VALUE"
+          Key: Environment
+          Value: Dev
+      ServiceRoleArn: !GetAtt [ CodeDeployServiceRole, Arn ]      
+      DeploymentGroupName: DevDeploymentGroup
+
+  CodeDeployProdDeploymentGroup: 
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties: 
+      ApplicationName: !Ref CodeDeployApplication
+      Ec2TagFilters: 
+        - Type: "KEY_AND_VALUE"
+          Key: Environment
+          Value: Prod
+      ServiceRoleArn: !GetAtt [ CodeDeployServiceRole, Arn ]      
+      DeploymentGroupName: ProdDeploymentGroup
+
+  CodeDeployServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: CodeDeployServiceRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codedeploy.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: "CodeDeployAccessPolicy"
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ec2:DescribeInstances'
+                  - 'ec2:DescribeInstanceStatus'
+                  - 'ec2:TerminateInstances'
+                  - 'tag:GetTags'
+                  - 'tag:GetResources'
+                  - 'sns:Publish'
+                  - 'cloudwatch:DescribeAlarms'
+                  - 'cloudwatch:PutMetricAlarm'
+                Resource: '*'
+
+Outputs:
+  CodeDeployServiceRole:
+    Description: CodeDeploy Service Role Name
+    Value: !Ref CodeDeployServiceRole
+    Export:
+      Name: CodeDeployServiceRole
+  CodeDeployApplication:
+    Description: CodeDeploy Application Name
+    Value: !Ref CodeDeployApplication
+    Export:
+      Name: CodeDeployApplication
+  CodeDeployDevDeploymentGroup:
+    Description: CodeDeploy Dev Deployment Group Name
+    Value: !Ref CodeDeployDevDeploymentGroup
+    Export:
+      Name: CodeDeployDevDeploymentGroup
+  CodeDeployProdDeploymentGroup:
+    Description: CodeDeploy Prod Deployment Group Name
+    Value: !Ref CodeDeployProdDeploymentGroup
+    Export:
+      Name: CodeDeployProdDeploymentGroup

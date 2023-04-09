@@ -1,0 +1,24 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template to Create an S3 Bucket with versioning
+
+Parameters:
+  BucketName:
+    Type: String
+    Description: S3 Bucket Name
+    Default: ""
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    # DeletionPolicy: Retain
+    Properties:
+      BucketName: !Ref BucketName
+      VersioningConfiguration:
+        Status: Enabled
+
+Outputs:
+  ccDemoAppArtifactBucket:
+    Description: CodePipeline Artifact Bucket Name
+    Value: !Ref BucketName
+    Export:
+      Name: ccDemoAppArtifactBucket

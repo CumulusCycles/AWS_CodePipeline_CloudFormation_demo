@@ -1,0 +1,6 @@
+[
+    {
+        "ParameterKey": "CodeDeployAppName",
+        "ParameterValue": "ccDemoAppCodeDeployApp"
+    }
+]

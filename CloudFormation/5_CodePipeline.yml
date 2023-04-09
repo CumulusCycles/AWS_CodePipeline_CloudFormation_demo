@@ -1,0 +1,165 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template to create CodePipeline
+
+# Parameters:
+  # Email:
+  #   Description: Email address where CodePipeline sends pipeline notifications
+  #   Type: String 
+
+Resources:
+  # CodePipelineSNSTopic:
+  #   Type: AWS::SNS::Topic
+  #   Properties:
+  #     Subscription:
+  #       - Endpoint: !Ref Email
+  #         Protocol: email
+
+  CodePipelineRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: CodePipelineRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "codepipeline.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: /
+      Policies:
+        - PolicyName: "CodePipelineAccessPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - "s3:DeleteObject"
+                  - "s3:GetObject"
+                  - "s3:GetObjectVersion"
+                  - "s3:ListBucket"
+                  - "s3:PutObject"
+                  - "s3:GetBucketPolicy"
+                Resource:
+                  - !Sub 
+                    - arn:aws:s3:::${ccDemoAppArtifactBucket}/*
+                    - ccDemoAppArtifactBucket: !ImportValue ccDemoAppArtifactBucket
+                  - !Sub 
+                    - arn:aws:s3:::${ccDemoAppArtifactBucket}
+                    - ccDemoAppArtifactBucket: !ImportValue ccDemoAppArtifactBucket
+              - Effect: "Allow"
+                Action:
+                  - "sns:Publish"
+                Resource: '*'
+              - Effect: "Allow"
+                Action:
+                  - "codecommit:ListBranches"
+                  - "codecommit:ListRepositories"
+                  - "codecommit:BatchGetRepositories"
+                  - "codecommit:Get*"
+                  - "codecommit:GitPull"
+                  - "codecommit:UploadArchive"
+                Resource: !Sub
+                  - arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:${ccDemoAppRepoName}
+                  - ccDemoAppRepoName: !ImportValue ccDemoAppRepoName
+              - Effect: "Allow"
+                Action:
+                  - "codebuild:StartBuild"
+                  - "codebuild:BatchGetBuilds"
+                Resource:
+                  - !Sub
+                    - arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/${ccDemoAppCodeBuildProject}
+                    - ccDemoAppCodeBuildProject: !ImportValue ccDemoAppCodeBuildProject
+                  - !Sub
+                    - arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:build/${ccDemoAppCodeBuildProject}:*
+                    - ccDemoAppCodeBuildProject: !ImportValue ccDemoAppCodeBuildProject
+              - Effect: Allow
+                Action:
+                  - 'codedeploy:CreateDeployment'
+                  - 'codedeploy:GetApplicationRevision'
+                  - 'codedeploy:GetDeployment'
+                  - 'codedeploy:GetDeploymentConfig'
+                  - 'codedeploy:RegisterApplicationRevision'
+                Resource: '*'
+
+  CodePipeline:
+    Type: "AWS::CodePipeline::Pipeline"
+    Properties:
+      Name: !Sub CICDPipe
+      RoleArn: !GetAtt [ CodePipelineRole, Arn ]
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: ApplicationSource
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              OutputArtifacts:
+                - Name: ApplicationOutput
+              Configuration:
+                BranchName: main
+                RepositoryName: !ImportValue ccDemoAppRepoName
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: CodeBuild
+              InputArtifacts:
+                - Name: ApplicationOutput
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              OutputArtifacts:
+                - Name: CodeBuildArtifact
+              Configuration:
+                ProjectName: !ImportValue ccDemoAppCodeBuildProject
+              RunOrder: 1
+        - Name: DeployToDev
+          Actions:
+            - Name: DeployToDev
+              InputArtifacts:
+                - Name: CodeBuildArtifact
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CodeDeploy
+              Configuration:
+                ApplicationName: !ImportValue CodeDeployApplication
+                DeploymentGroupName: !ImportValue CodeDeployDevDeploymentGroup
+              RunOrder: 1
+        - Name: ManualApproval
+          Actions:
+            - Name: ManualApproval
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Version: 1
+                Provider: Manual
+              # Configuration:
+              #   NotificationArn: !Ref CodePipelineSNSTopic
+              #   CustomData: Approve Production deployment
+              RunOrder: 1
+        - Name: DeployToProd
+          Actions:
+            - Name: DeployToProd
+              InputArtifacts:
+                - Name: CodeBuildArtifact
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CodeDeploy
+              Configuration:
+                ApplicationName: !ImportValue CodeDeployApplication
+                DeploymentGroupName: !ImportValue CodeDeployProdDeploymentGroup
+              RunOrder: 1
+
+      ArtifactStore:
+        Type: S3
+        Location: !ImportValue ccDemoAppArtifactBucket

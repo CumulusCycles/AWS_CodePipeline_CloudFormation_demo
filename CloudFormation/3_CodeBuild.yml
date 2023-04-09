@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template to create a CodeBuild Project
+
+Parameters:
+  BuildProjectName:
+    Type: String
+    Description: Name of CodeBuild Project
+    Default: ""
+
+Resources:
+  ccDemoAppCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Ref BuildProjectName
+      Description: Build App
+      ServiceRole: !GetAtt [ ccDemoAppCodeBuildRole, Arn ]
+      Artifacts:
+        Type: S3
+        Name: !Ref BuildProjectName        
+        Location: !ImportValue ccDemoAppArtifactBucket
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/java:openjdk-8
+      Source:
+        Location: !Sub 
+          - https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/${ccDemoAppRepoName}
+          - ccDemoAppRepoName: !ImportValue ccDemoAppRepoName
+        Type: CODECOMMIT
+      TimeoutInMinutes: 15
+
+  ccDemoAppCodeBuildRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: ccDemoAppCodeBuildRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "codebuild.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: /service-role/
+      Policies:
+        - PolicyName: ccDemoAppCodeCommitPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "codecommit:GitPull"
+                Resource: !Sub
+                  - arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:${ccDemoAppRepoName}
+                  - ccDemoAppRepoName: !ImportValue ccDemoAppRepoName
+              - Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*
+              - Effect: "Allow"
+                Action:
+                  - "s3:PutObject"
+                  - "s3:GetObject"
+                  - "s3:GetObjectVersion"
+                  - "s3:ListBucket"                  
+                Resource:
+                  - !Sub arn:aws:s3:::codepipeline-${AWS::Region}-*
+                  - !Sub 
+                    - arn:aws:s3:::${ccDemoAppArtifactBucket}/*
+                    - ccDemoAppArtifactBucket: !ImportValue ccDemoAppArtifactBucket
+                  - !Sub 
+                    - arn:aws:s3:::${ccDemoAppArtifactBucket}
+                    - ccDemoAppArtifactBucket: !ImportValue ccDemoAppArtifactBucket
+
+Outputs:
+  ccDemoAppCodeBuildRole:
+    Description: CodeBuild Role Name
+    Value: !Ref ccDemoAppCodeBuildRole
+    Export:
+      Name: ccDemoAppCodeBuildRole
+  ccDemoAppCodeBuildProject:
+    Description: CodeBuild Project Name
+    Value: !Ref ccDemoAppCodeBuildProject
+    Export:
+      Name: ccDemoAppCodeBuildProject

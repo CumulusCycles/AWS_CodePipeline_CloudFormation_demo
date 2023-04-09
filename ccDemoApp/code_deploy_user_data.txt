@@ -1,0 +1,18 @@
+#!/bin/bash
+sudo yum -y update
+sudo yum -y install ruby
+sudo yum -y install wget
+cd /home/ec2-user
+
+# Install CodeDeployAgent
+wget https://aws-codedeploy-us-east-1.s3.amazonaws.com/latest/install
+sudo chmod +x ./install
+sudo ./install auto
+
+# Install Java
+sudo yum install java -y
+
+# Install Apache
+wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.73/bin/apache-tomcat-9.0.73.tar.gz 
+sudo tar -xvf apache-tomcat-9.0.73.tar.gz 
+sudo apache-tomcat-9.0.73/bin/startup.sh

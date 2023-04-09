@@ -1,0 +1,6 @@
+[
+    {
+        "ParameterKey": "BuildProjectName",
+        "ParameterValue": "ccDemoAppCodeBuildProject"
+    }
+]

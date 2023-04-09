@@ -1,0 +1,6 @@
+[
+    {
+        "ParameterKey": "Email",
+        "ParameterValue": "YOUR_EMAIL_ADDRESS_FOR_SNS_NOTIFICATIONS"
+    }
+]

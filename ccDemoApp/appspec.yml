@@ -1,0 +1,18 @@
+version: 0.0
+os: linux
+
+files:
+  - source: /demoapp.war
+    destination: /home/ec2-user/apache-tomcat-9.0.73/webapps/
+    
+file_exists_behavior: OVERWRITE    
+          
+hooks:
+  ApplicationStop:
+    - location: stop_server.sh
+      timeout: 300
+      runas: root 
+  ApplicationStart:
+    - location: start_server.sh
+      timeout: 3600
+      runas: root
